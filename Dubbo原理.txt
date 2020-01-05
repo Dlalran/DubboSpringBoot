@@ -1,0 +1,16 @@
+一、标签解析:
+DubboNameSpaceHandler会对配置文件中的每个标签生成对应的类(如dubbo:service对应ServiceBean,dubbo:protocol对应ProtocolConfig等)
+并传入这些类给DubboBeanDefinitionParser的构造方法来创建不同的Dubbo标签解析器
+
+二、服务暴露
+ServiceBean解析完成后，保存其他配置标签类的信息，并监听Spring IOC容器加载完成(ContextRefreshEvent)事件，发生后对服务进行暴露
+检查基本配置后，获得配置的注册中心地址，并获得ProtocolConfig中指定的协议、端口，将这些信息和接口实现包装成一个执行器(Invoker),
+然后通过Protocol来暴露(export)执行器，其内部将Invoker封装成Exporter，并通过Exporter开启服务器(Netty监听端口)并注册到注册中心
+
+三、服务引用
+通过ReferenceBean来远程调用服务，通过FactoryBean获得ReferenceConfig，初始化时通过ProxyFactory来获得Protocol，再具体通过DubboProtocol
+和RegistryProtocol来分别连接获取客户端以及订阅服务，将消费者注册到注册表(ProviderConsumerRegTable)最后返回Invoker的代理
+
+四、服务调用
+通过Proxy进行代理，经过Filter(如mock、cache功能)，如果存在多个Invoker则通过多种机制(如负载均衡、集群策略)来决定调用的Invoker
+(Dubbo协议下则是DubboInvoker)，其底层通过Client来使用Netty客户端来对目标端口的服务器来发送请求
